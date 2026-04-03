@@ -123,24 +123,24 @@ if not st.session_state.documents_uploaded:
     
    if uploaded_file:
     # RESET old data
-    st.session_state.vector_store = None
-    st.session_state.qa_chain = None
-    st.session_state.messages = []
+        st.session_state.vector_store = None
+        st.session_state.qa_chain = None
+        st.session_state.messages = []
+        
+        with st.spinner("Processing the document..."):
+            path = "doc_file"
+            os.makedirs(path, exist_ok=True)
     
-    with st.spinner("Processing the document..."):
-        path = "doc_file"
-        os.makedirs(path, exist_ok=True)
-
-        # clear folder
-        for f in os.listdir(path):
-            os.remove(os.path.join(path, f))
-
-        for file in uploaded_file:
-            with open(os.path.join(path, file.name), "wb") as f:
-                f.write(file.getvalue())
-
-        process_file(path)
-        st.rerun()
+            # clear folder
+            for f in os.listdir(path):
+                os.remove(os.path.join(path, f))
+    
+            for file in uploaded_file:
+                with open(os.path.join(path, file.name), "wb") as f:
+                    f.write(file.getvalue())
+    
+            process_file(path)
+            st.rerun()
 
 # chat UI
 if st.session_state.documents_uploaded and st.session_state.agent :

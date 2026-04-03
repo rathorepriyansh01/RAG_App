@@ -139,7 +139,7 @@ if st.session_state.documents_uploaded and st.session_state.agent :
         st.chat_message("user").markdown(query)
         res = st.session_state.agent.invoke(
             {"messages": [{"role": "user", "content": query}]},
-            {"configurable": {"thread_id": "user-session"}}
+            {"configurable": {"thread_id": "user-1"}}
         )
 
         answer = res["messages"][-1].content

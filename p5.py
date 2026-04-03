@@ -52,7 +52,7 @@ def process_file(path):
 
     # create agent need -> tools , llm , system prompt
 
-    llm = ChatGroq(model="llama3-8b-8192")
+    llm = ChatGroq(model="openai/gpt-oss-20b")
 
     @tool
     def retriever_tool(query: str):

@@ -17,11 +17,6 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 import streamlit as st
 import os
 
-
-
-import os
-os.getenv("AIzaSyACIdHhoMSAwCPEo_KbuCA6l4ZZZN9qIjQ")
-
 # check the documents and create the agentic chatbot for question answering task using the uploaded document as knowledge base.
 
 if "documents_uploaded" not in st.session_state:
@@ -57,7 +52,7 @@ def process_file(path):
 
     # create agent need -> tools , llm , system prompt
 
-    llm = ChatGroq(model="openai/gpt-oss-20b")
+    llm = ChatGroq(model="llama3-8b-8192")
 
     @tool
     def retriever_tool(query: str):
@@ -100,7 +95,7 @@ if not st.session_state.documents_uploaded:
             path = "doc_file"
             os.makedirs(path, exist_ok=True)
             for file in uploaded_file:
-                with open(path + file.name, "wb") as f:
+                with open(os.path.join(path, file.name), "wb") as f:
                     f.write(file.getvalue())
             process_file(path)
             st.rerun()

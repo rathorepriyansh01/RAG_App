@@ -121,7 +121,7 @@ def process_file(path):
 if not st.session_state.documents_uploaded:
     uploaded_file = st.file_uploader(label = "Upload a PDF document", type=["pdf"],accept_multiple_files=True)
     
-   if uploaded_file:
+    if uploaded_file:
     # RESET old data
         st.session_state.vector_store = None
         st.session_state.qa_chain = None

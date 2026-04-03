@@ -1,0 +1,131 @@
+from dotenv import load_dotenv
+load_dotenv()
+
+from langchain_community.document_loaders import PyPDFLoader ,PyPDFDirectoryLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_groq import ChatGroq
+from langchain_community.vectorstores import InMemoryVectorStore
+from langchain.tools import tool
+from langchain.agents import create_agent
+from langgraph.checkpoint.memory import InMemorySaver
+from langchain_ollama import OllamaEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
+import streamlit as st
+import os
+from langchain_community.vectorstores import FAISS
+
+
+import os
+os.getenv("AIzaSyACIdHhoMSAwCPEo_KbuCA6l4ZZZN9qIjQ")
+
+# check the documents and create the agentic chatbot for question answering task using the uploaded document as knowledge base.
+
+if "documents_uploaded" not in st.session_state:
+    st.session_state.documents_uploaded = False
+
+if "agent" not in st.session_state:
+    st.session_state.agent = None
+
+if "memory" not in st.session_state:
+    st.session_state.memory = None
+
+if "vector_store" not in st.session_state:
+    st.session_state.vector_store = None
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+def process_file(path):
+
+    # load the data
+    loader = PyPDFDirectoryLoader(path)
+    docs = loader.load()
+
+    #split the data into chunks
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    split_docs = text_splitter.split_documents(docs)
+
+    # embeddings the data and create vector store
+
+    from langchain_community.embeddings import HuggingFaceEmbeddings
+
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    vector_store = FAISS.from_documents(split_docs, embeddings)
+
+    # create agent need -> tools , llm , system prompt
+
+    llm = ChatGroq(model="openai/gpt-oss-20b")
+
+    @tool
+    def retriever_tool(query: str):
+        """
+        this tool can help you to retrieve the relevent data of the pdf
+        documents ,and the document have details about the pandas library in python.
+      
+        """
+        same_docs = vector_store.similarity_search(query ,k = 3)
+      
+        context = ""
+
+        for doc in same_docs:
+            context += doc.page_content + "\n"
+
+        return context
+
+
+    system_prompt = """
+      you are thehelpful assistent that answers question using my knowledge based consist of the uploaded document . ALWAYS use the 'retriever_tool'tool for question requiring external knowledge.  
+    """
+    # memory 
+    memory = InMemorySaver()
+
+    # create agent
+    agent = create_agent(model= llm , system_prompt=system_prompt , tools=[retriever_tool], checkpointer=memory)
+
+    st.session_state.agent = agent
+    
+    st.session_state.documents_uploaded = True
+
+
+# uploading the document UI
+
+if not st.session_state.documents_uploaded:
+    uploaded_file = st.file_uploader(label = "Upload a PDF document", type=["pdf"],accept_multiple_files=True)
+    
+    if uploaded_file:
+        with st.spinner("Processing the document..."):
+            path = "doc_file"
+            os.makedirs(path, exist_ok=True)
+            for file in uploaded_file:
+                with open(path + file.name, "wb") as f:
+                    f.write(file.getvalue())
+            process_file(path)
+            st.rerun()
+
+# chat UI
+if st.session_state.documents_uploaded and st.session_state.agent :
+    
+    for message in st.session_state.messages:
+        role = message["role"]
+        content = message["content"]
+        st.chat_message(role).markdown(content)
+
+    
+    query = st.chat_input("Ask a question about the uploaded document:")
+    if query:
+        st.session_state.messages.append({"role": "user", "content": query})
+        st.chat_message("user").markdown(query)
+        res = st.session_state.agent.invoke(
+            {"messages": [{"role": "user", "content": query}]},
+            {"configurable": {"thread_id": "user-session"}}
+        )
+
+        answer = res["messages"][-1].content
+        st.chat_message("assistant").markdown(answer)
+        st.session_state.messages.append({"role": "assistant", "content": answer})
+
+
+
+    
+
+    

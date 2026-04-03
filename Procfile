@@ -1,0 +1,1 @@
+web: streamlit run p5.py --server.port $PORT --server.address 0.0.0.0

@@ -53,6 +53,7 @@ def process_file(path):
     # create agent need -> tools , llm , system prompt
 
     llm = ChatGroq(model="openai/gpt-oss-20b")
+    
     st.markdown("## 📊 PDF Processing Debug Panel")
 
     st.markdown(f"""
@@ -78,6 +79,7 @@ def process_file(path):
     "chunks": len(split_docs),
     "vector_store": len(vector_store.index_to_docstore_id) if hasattr(vector_store, "index_to_docstore_id") else "unknown"
     }
+    st.session_state.vector_store = vector_store
 
     
 
@@ -119,15 +121,26 @@ def process_file(path):
 if not st.session_state.documents_uploaded:
     uploaded_file = st.file_uploader(label = "Upload a PDF document", type=["pdf"],accept_multiple_files=True)
     
-    if uploaded_file:
-        with st.spinner("Processing the document..."):
-            path = "doc_file"
-            os.makedirs(path, exist_ok=True)
-            for file in uploaded_file:
-                with open(os.path.join(path, file.name), "wb") as f:
-                    f.write(file.getvalue())
-            process_file(path)
-            st.rerun()
+   if uploaded_file:
+    # RESET old data
+    st.session_state.vector_store = None
+    st.session_state.qa_chain = None
+    st.session_state.messages = []
+    
+    with st.spinner("Processing the document..."):
+        path = "doc_file"
+        os.makedirs(path, exist_ok=True)
+
+        # clear folder
+        for f in os.listdir(path):
+            os.remove(os.path.join(path, f))
+
+        for file in uploaded_file:
+            with open(os.path.join(path, file.name), "wb") as f:
+                f.write(file.getvalue())
+
+        process_file(path)
+        st.rerun()
 
 # chat UI
 if st.session_state.documents_uploaded and st.session_state.agent :

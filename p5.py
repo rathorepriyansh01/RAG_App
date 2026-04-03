@@ -53,7 +53,7 @@ def process_file(path):
     from langchain_community.embeddings import HuggingFaceEmbeddings
 
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    vector_store = FAISS.from_documents(split_docs, embeddings)
+    vector_store = InMemoryVectorStore.from_documents(split_docs, embeddings)
 
     # create agent need -> tools , llm , system prompt
 

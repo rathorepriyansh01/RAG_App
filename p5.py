@@ -84,6 +84,27 @@ def process_file(path):
     
     st.session_state.documents_uploaded = True
 
+    st.markdown("## 📊 PDF Processing Debug Panel")
+
+    st.markdown(f"""
+    ### 📄 Document Status
+
+    - 📁 Total PDFs Loaded: **{len(docs)}**
+    - ✂️ Total Chunks Created: **{len(split_docs)}**
+    """)
+
+    # Check vector store
+    try:
+        count = len(vector_store.index_to_docstore_id)
+    except:
+        count = "Unknown / Error"
+
+    st.markdown(f"""
+    ### 🧠 Vector Store Status
+
+    - 📦 Stored Documents: **{count}**
+    """)
+
 
 # uploading the document UI
 

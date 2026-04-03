@@ -1,5 +1,8 @@
-from dotenv import load_dotenv
-load_dotenv()
+import os
+import streamlit as st
+
+os.environ["GOOGLE_API_KEY"] = st.secrets["AIzaSyACIdHhoMSAwCPEo_KbuCA6l4ZZZN9qIjQ"]
+os.environ["GROQ_API_KEY"] = st.secrets["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"]
 
 from langchain_community.document_loaders import PyPDFLoader ,PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter

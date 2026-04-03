@@ -12,11 +12,11 @@ from langchain_community.vectorstores import InMemoryVectorStore
 from langchain.tools import tool
 from langchain.agents import create_agent
 from langgraph.checkpoint.memory import InMemorySaver
-from langchain_ollama import OllamaEmbeddings
+
 from langchain_community.embeddings import HuggingFaceEmbeddings
 import streamlit as st
 import os
-from langchain_community.vectorstores import FAISS
+
 
 
 import os

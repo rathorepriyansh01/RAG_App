@@ -73,6 +73,11 @@ def process_file(path):
 
     - 📦 Stored Documents: **{count}**
     """)
+    st.session_state.debug_info = {
+    "docs": len(docs),
+    "chunks": len(split_docs),
+    "vector_store": len(vector_store.index_to_docstore_id) if hasattr(vector_store, "index_to_docstore_id") else "unknown"
+    }
 
     
 

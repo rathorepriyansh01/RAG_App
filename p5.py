@@ -11,6 +11,7 @@ from langchain_groq import ChatGroq
 from langchain_ollama import ChatOllama
 from langchain_community.vectorstores import InMemoryVectorStore
 from langchain.tools import tool
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.prebuilt import create_react_agent          # ✅ FIXED import
 from langgraph.checkpoint.memory import MemorySaver        # ✅ FIXED import
 
@@ -168,8 +169,7 @@ def process_files(path: str):
         vector_store = InMemoryVectorStore.from_documents(split_docs, embeddings)
 
         # ✅ Use a valid ollama model name
-        llm = ChatOllama(model="gemma3:1b", temperature=0)
-
+        llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key=os.getenv("AIzaSyC5VgjxjuNxEg2LGxxQ_0SQ1IWZd61cfUY"))
         @tool
         def retriever_tool(query: str) -> str:
             """

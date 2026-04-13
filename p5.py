@@ -168,7 +168,7 @@ def process_files(path: str):
         vector_store = InMemoryVectorStore.from_documents(split_docs, embeddings)
 
         # ✅ Use a valid ollama model name
-       llm = ChatOllama(model="gemma3:1b", temperature=0)
+        llm = ChatOllama(model="gemma3:1b", temperature=0)
 
         @tool
         def retriever_tool(query: str) -> str:

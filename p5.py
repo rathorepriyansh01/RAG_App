@@ -8,6 +8,7 @@ from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 from langchain_community.vectorstores import InMemoryVectorStore
 from langchain.tools import tool
 from langgraph.prebuilt import create_react_agent          # ✅ FIXED import
@@ -166,9 +167,8 @@ def process_files(path: str):
         embeddings   = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         vector_store = InMemoryVectorStore.from_documents(split_docs, embeddings)
 
-        # ✅ Use a valid Groq model name
-        groq_api_key = os.getenv("GROQ_API_KEY")   # store key in .env as GROQ_API_KEY=gsk_...
-        llm = ChatGroq(model="llama-3.3-70b-versatile", api_key="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")
+        # ✅ Use a valid ollama model name
+       llm = ChatOllama(model="gemma3:1b", temperature=0)
 
         @tool
         def retriever_tool(query: str) -> str:

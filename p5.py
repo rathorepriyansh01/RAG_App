@@ -8,7 +8,7 @@ from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
-from langchain_ollama import ChatOllama
+
 from langchain_community.vectorstores import InMemoryVectorStore
 from langchain.tools import tool
 from langchain_google_genai import ChatGoogleGenerativeAI

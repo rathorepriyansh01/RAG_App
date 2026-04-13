@@ -1,171 +1,321 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 import os
+import shutil
 import streamlit as st
-
-os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
-os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
-
-from langchain_community.document_loaders import PyPDFLoader ,PyPDFDirectoryLoader
+from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
 from langchain_community.vectorstores import InMemoryVectorStore
 from langchain.tools import tool
-from langchain.agents import create_agent
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.prebuilt import create_react_agent          # ✅ FIXED import
+from langgraph.checkpoint.memory import MemorySaver        # ✅ FIXED import
 
-from langchain_community.embeddings import HuggingFaceEmbeddings
-import streamlit as st
-import os
+# ─────────────────────────────────────────────
+# Page config
+# ─────────────────────────────────────────────
+st.set_page_config(
+    page_title="DocMind – PDF Chatbot",
+    page_icon="🧠",
+    layout="wide",
+)
 
-# check the documents and create the agentic chatbot for question answering task using the uploaded document as knowledge base.
+# ─────────────────────────────────────────────
+# Custom CSS  (dark card theme)
+# ─────────────────────────────────────────────
+st.markdown("""
+<style>
+/* ---------- global ---------- */
+body, .stApp { background: #0f1117; color: #e0e0e0; }
 
-if "documents_uploaded" not in st.session_state:
-    st.session_state.documents_uploaded = False
+/* ---------- sidebar ---------- */
+[data-testid="stSidebar"] {
+    background: #161b27;
+    border-right: 1px solid #2a2f3e;
+}
+[data-testid="stSidebar"] * { color: #c9d1e0 !important; }
 
-if "agent" not in st.session_state:
-    st.session_state.agent = None
+/* ---------- top header bar ---------- */
+.top-bar {
+    background: linear-gradient(135deg, #1a1f2e 0%, #1e2640 100%);
+    border: 1px solid #2a3550;
+    border-radius: 12px;
+    padding: 18px 28px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.top-bar h1 { margin: 0; font-size: 1.6rem; color: #7eb8f7; }
+.top-bar p  { margin: 0; color: #8a95ab; font-size: 0.9rem; }
 
-if "memory" not in st.session_state:
-    st.session_state.memory = None
+/* ---------- upload card ---------- */
+.upload-card {
+    background: #161b27;
+    border: 2px dashed #2e4a7a;
+    border-radius: 14px;
+    padding: 40px 30px;
+    text-align: center;
+    margin: 40px auto;
+    max-width: 560px;
+}
+.upload-card h2 { color: #7eb8f7; margin-bottom: 6px; }
+.upload-card p  { color: #6b7a99; }
 
-if "vector_store" not in st.session_state:
-    st.session_state.vector_store = None
+/* ---------- chat bubbles ---------- */
+.chat-user {
+    background: #1e2d4a;
+    border-radius: 16px 16px 4px 16px;
+    padding: 12px 18px;
+    margin: 8px 0 8px auto;
+    max-width: 75%;
+    color: #d4e8ff;
+    font-size: 0.95rem;
+    word-wrap: break-word;
+}
+.chat-assistant {
+    background: #1a2035;
+    border: 1px solid #2a3550;
+    border-radius: 16px 16px 16px 4px;
+    padding: 12px 18px;
+    margin: 8px auto 8px 0;
+    max-width: 75%;
+    color: #c8d8f0;
+    font-size: 0.95rem;
+    word-wrap: break-word;
+}
+.role-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+    opacity: 0.65;
+}
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-def process_file(path):
+/* ---------- status badge ---------- */
+.badge-success {
+    display: inline-block;
+    background: #0d3326;
+    color: #3ecf8e;
+    border: 1px solid #1a5c42;
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+.badge-info {
+    display: inline-block;
+    background: #1a2540;
+    color: #7eb8f7;
+    border: 1px solid #2a3f6a;
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 0.78rem;
+}
 
-    # load the data
-    loader = PyPDFDirectoryLoader(path)
-    docs = loader.load()
+/* ---------- streamlit overrides ---------- */
+.stChatInputContainer textarea { background: #1a1f2e !important; color: #e0e0e0 !important; }
+div[data-testid="stChatMessage"] { background: transparent !important; }
+.stButton button {
+    background: linear-gradient(135deg, #2d5be3, #1e3fa8);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+}
+.stButton button:hover { background: linear-gradient(135deg, #3d6cf5, #2a50c8); }
+</style>
+""", unsafe_allow_html=True)
 
-    #split the data into chunks
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    split_docs = text_splitter.split_documents(docs)
+# ─────────────────────────────────────────────
+# Session state init
+# ─────────────────────────────────────────────
+for key, default in {
+    "documents_uploaded": False,
+    "agent": None,
+    "messages": [],
+    "uploaded_file_names": [],
+    "processing_error": None,
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
 
-    # embeddings the data and create vector store
+# ─────────────────────────────────────────────
+# Constants
+# ─────────────────────────────────────────────
+DOC_DIR   = "./doc_files/"
+THREAD_ID = "user-session-1"
 
-    from langchain_community.embeddings import HuggingFaceEmbeddings
-
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    vector_store = InMemoryVectorStore.from_documents(split_docs, embeddings)
-
-    # create agent need -> tools , llm , system prompt
-
-    llm = ChatGroq(model="openai/gpt-oss-20b")
-    
-    st.markdown("## 📊 PDF Processing Debug Panel")
-
-    st.markdown(f"""
-    ### 📄 Document Status
-
-    - 📁 Total PDFs Loaded: **{len(docs)}**
-    - ✂️ Total Chunks Created: **{len(split_docs)}**
-    """)
-
-    # Check vector store
+# ─────────────────────────────────────────────
+# Core processing
+# ─────────────────────────────────────────────
+def process_files(path: str):
+    """Load PDFs → chunk → embed → build agent."""
     try:
-        count = len(vector_store.index_to_docstore_id)
-    except:
-        count = "Unknown / Error"
+        loader = PyPDFDirectoryLoader(path)
+        docs   = loader.load()
 
-    st.markdown(f"""
-    ### 🧠 Vector Store Status
+        if not docs:
+            raise ValueError("No text could be extracted from the uploaded PDFs.")
 
-    - 📦 Stored Documents: **{count}**
-    """)
-    st.session_state.debug_info = {
-    "docs": len(docs),
-    "chunks": len(split_docs),
-    "vector_store": len(vector_store.index_to_docstore_id) if hasattr(vector_store, "index_to_docstore_id") else "unknown"
-    }
-    st.session_state.vector_store = vector_store
+        splitter   = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        split_docs = splitter.split_documents(docs)
 
-    
+        embeddings   = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+        vector_store = InMemoryVectorStore.from_documents(split_docs, embeddings)
 
-    @tool
-    def retriever_tool(query: str):
-        """
-        this tool can help you to retrieve the relevent data of the pdf
-        documents ,and the document have details about the pandas library in python.
-      
-        """
-        same_docs = vector_store.similarity_search(query ,k = 3)
-      
-        context = ""
+        # ✅ Use a valid Groq model name
+        groq_api_key = os.getenv("GROQ_API_KEY")   # store key in .env as GROQ_API_KEY=gsk_...
+        llm = ChatGroq(model="llama-3.3-70b-versatile", api_key="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")
 
-        for doc in same_docs:
-            context += doc.page_content + "\n"
+        @tool
+        def retriever_tool(query: str) -> str:
+            """
+            Retrieves relevant excerpts from the uploaded PDF documents.
+            Always use this tool when answering questions about document content.
+            """
+            similar_docs = vector_store.similarity_search(query, k=4)
+            return "\n\n".join(doc.page_content for doc in similar_docs) or "No relevant content found."
 
-        return context
-
-
-    system_prompt = """
-      you are thehelpful assistent that answers question using my knowledge based consist of the uploaded document . ALWAYS use the 'retriever_tool'tool for question requiring external knowledge.  
-    """
-    # memory 
-    memory = InMemorySaver()
-
-    # create agent
-    agent = create_agent(model= llm , system_prompt=system_prompt , tools=[retriever_tool], checkpointer=memory)
-
-    st.session_state.agent = agent
-    
-    st.session_state.documents_uploaded = True
-
-   
-
-
-# uploading the document UI
-
-if not st.session_state.documents_uploaded:
-    uploaded_file = st.file_uploader(label = "Upload a PDF document", type=["pdf"],accept_multiple_files=True)
-    
-    if uploaded_file:
-    # RESET old data
-        st.session_state.vector_store = None
-        st.session_state.qa_chain = None
-        st.session_state.messages = []
-        
-        with st.spinner("Processing the document..."):
-            path = "doc_file"
-            os.makedirs(path, exist_ok=True)
-    
-            # clear folder
-            for f in os.listdir(path):
-                os.remove(os.path.join(path, f))
-    
-            for file in uploaded_file:
-                with open(os.path.join(path, file.name), "wb") as f:
-                    f.write(file.getvalue())
-    
-            process_file(path)
-            st.rerun()
-
-# chat UI
-if st.session_state.documents_uploaded and st.session_state.agent :
-    
-    for message in st.session_state.messages:
-        role = message["role"]
-        content = message["content"]
-        st.chat_message(role).markdown(content)
-
-    
-    query = st.chat_input("Ask a question about the uploaded document:")
-    if query:
-        st.session_state.messages.append({"role": "user", "content": query})
-        st.chat_message("user").markdown(query)
-        res = st.session_state.agent.invoke(
-            {"messages": [{"role": "user", "content": query}]},
-            {"configurable": {"thread_id": "user-1"}}
+        system_prompt = (
+            "You are DocMind, a helpful AI assistant that answers questions based solely "
+            "on the uploaded PDF documents. ALWAYS call the 'retriever_tool' before answering "
+            "any factual question. If the answer is not found in the documents, say so clearly. "
+            "Keep answers concise, accurate, and well-structured."
         )
 
-        answer = res["messages"][-1].content
-        st.chat_message("assistant").markdown(answer)
+        memory = MemorySaver()
+        agent  = create_react_agent(
+            model=llm,
+            tools=[retriever_tool],
+            prompt=system_prompt,
+            checkpointer=memory,
+        )
+
+        st.session_state.agent              = agent
+        st.session_state.documents_uploaded = True
+        st.session_state.processing_error   = None
+
+    except Exception as e:
+        st.session_state.processing_error = str(e)
+
+
+# ─────────────────────────────────────────────
+# Sidebar
+# ─────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("## 🧠 DocMind")
+    st.markdown("---")
+
+    if st.session_state.documents_uploaded:
+        st.markdown('<span class="badge-success">✔ Documents Ready</span>', unsafe_allow_html=True)
+        st.markdown("**Loaded files:**")
+        for name in st.session_state.uploaded_file_names:
+            st.markdown(f"📄 `{name}`")
+
+        st.markdown("---")
+        if st.button("🗑️ Clear & Upload New"):
+            for key in ["documents_uploaded", "agent", "messages",
+                        "uploaded_file_names", "processing_error"]:
+                st.session_state[key] = False if key == "documents_uploaded" else \
+                                        None  if key in ("agent", "processing_error") else []
+            if os.path.exists(DOC_DIR):
+                shutil.rmtree(DOC_DIR)
+            st.rerun()
+    else:
+        st.markdown("Upload one or more PDF files to get started.")
+
+    st.markdown("---")
+    st.markdown("**Model:** `llama3-70b-8192`")
+    st.markdown("**Embeddings:** `all-MiniLM-L6-v2`")
+    st.caption("Powered by Groq + LangChain + LangGraph")
+
+# ─────────────────────────────────────────────
+# Header bar
+# ─────────────────────────────────────────────
+st.markdown("""
+<div class="top-bar">
+  <div>
+    <h1>🧠 DocMind</h1>
+    <p>Upload your PDFs and ask anything — your personal document intelligence assistant</p>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────
+# Upload screen
+# ─────────────────────────────────────────────
+if not st.session_state.documents_uploaded:
+    st.markdown("""
+    <div class="upload-card">
+      <h2>📂 Upload Your Documents</h2>
+      <p>Supports multiple PDFs — all content becomes your searchable knowledge base</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    uploaded_files = st.file_uploader(
+        "Choose PDF files",
+        type=["pdf"],
+        accept_multiple_files=True,
+        label_visibility="collapsed",
+    )
+
+    if uploaded_files:
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button("🚀 Process Documents", use_container_width=True):
+                os.makedirs(DOC_DIR, exist_ok=True)   # ✅ create dir safely
+                with st.spinner("Embedding documents — this may take a moment…"):
+                    for f in uploaded_files:
+                        with open(os.path.join(DOC_DIR, f.name), "wb") as fp:
+                            fp.write(f.getvalue())
+                    st.session_state.uploaded_file_names = [f.name for f in uploaded_files]
+                    process_files(DOC_DIR)
+
+                if st.session_state.processing_error:
+                    st.error(f"❌ Error: {st.session_state.processing_error}")
+                else:
+                    st.success("✅ Documents processed successfully!")
+                    st.rerun()   # ✅ rerun AFTER spinner exits, not inside it
+
+# ─────────────────────────────────────────────
+# Chat screen
+# ─────────────────────────────────────────────
+if st.session_state.documents_uploaded and st.session_state.agent:
+
+    # Render message history
+    chat_container = st.container()
+    with chat_container:
+        for msg in st.session_state.messages:
+            if msg["role"] == "user":
+                st.markdown(f"""
+                <div class="chat-user">
+                  <div class="role-label">YOU</div>
+                  {msg["content"]}
+                </div>""", unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div class="chat-assistant">
+                  <div class="role-label">🧠 DOCMIND</div>
+                  {msg["content"]}
+                </div>""", unsafe_allow_html=True)
+
+    # Chat input
+    query = st.chat_input("Ask a question about your documents…")
+    if query:
+        st.session_state.messages.append({"role": "user", "content": query})
+
+        with st.spinner("Thinking…"):
+            try:
+                result = st.session_state.agent.invoke(
+                    {"messages": [{"role": "user", "content": query}]},
+                    {"configurable": {"thread_id": THREAD_ID}},
+                )
+                answer = result["messages"][-1].content
+            except Exception as e:
+                answer = f"⚠️ Sorry, something went wrong: {e}"
+
         st.session_state.messages.append({"role": "assistant", "content": answer})
-
-
-
-    
-
-    
+        st.rerun()

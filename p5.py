@@ -11,6 +11,8 @@ from langchain_ollama import ChatOllama
 from langchain_community.vectorstores import InMemoryVectorStore
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+import os
+os.environ["GROQ_API_KEY"] = "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"
 
 st.set_page_config(
     page_title="DocMind – PDF Chatbot",

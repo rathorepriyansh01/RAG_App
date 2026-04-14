@@ -169,7 +169,7 @@ def process_files(path: str):
         vector_store = InMemoryVectorStore.from_documents(split_docs, embeddings)
 
         # ✅ Use a valid ollama model name
-        llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key=os.getenv("AIzaSyC5VgjxjuNxEg2LGxxQ_0SQ1IWZd61cfUY"))
+        llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key="AIzaSyC5VgjxjuNxEg2LGxxQ_0SQ1IWZd61cfUY")
         @tool
         def retriever_tool(query: str) -> str:
             """

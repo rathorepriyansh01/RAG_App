@@ -87,7 +87,7 @@ def process_files(path: str):
         if not docs:
             raise ValueError("No text could be extracted from the uploaded PDFs.")
 
-        splitter   = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        splitter   = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=200)
         split_docs = splitter.split_documents(docs)
 
         embeddings   = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
@@ -105,7 +105,7 @@ def get_answer(question: str, chat_history: list) -> str:
     """Retrieve context and answer question using LLM directly — no agent needed."""
     try:
         # Step 1: Retrieve relevant chunks
-        docs = st.session_state.vector_store.similarity_search(question, k=4)
+        docs = st.session_state.vector_store.similarity_search(question, k=2)
         context = "\n\n".join(doc.page_content for doc in docs)
 
         # Step 2: Build history string
@@ -135,7 +135,9 @@ Instructions:
 Answer:
 """)
 
-        llm   = ChatOllama(model="llama3.2", temperature=0)
+        from langchain_groq import ChatGroq
+
+        llm = ChatGroq(model="llama3-8b-8192",temperature=0)
         chain = prompt | llm | StrOutputParser()
 
         answer = chain.invoke({

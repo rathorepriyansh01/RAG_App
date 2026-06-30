@@ -15,7 +15,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
 # ─── Groq API key ─────────────────────────────────────────────────────────────
-os.environ["GROQ_API_KEY"] = "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"
+os.environ["GROQ_API_KEY"] = "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"
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  PAGE CONFIG

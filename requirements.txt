@@ -6,6 +6,10 @@ langchain-text-splitters
 langchain-groq
 langchain-google-genai
 langchain-ollama
+langchain_nvidia_ai_endpoints 
+
+
+
 
 langgraph
 

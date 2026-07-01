@@ -723,7 +723,7 @@ ANSWER:
     llm = ChatNVIDIA(
     model="meta/llama-3.1-70b-instruct",
     api_key=os.getenv("NVIDIA_API_KEY"),
-    timeout=120,
+    timeout=180,
     temperature=0
 )
     chain = prompt | llm | StrOutputParser()

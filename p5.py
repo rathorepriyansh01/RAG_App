@@ -13,9 +13,13 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import InMemoryVectorStore
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+import os
+from dotenv import load_dotenv
+from langchain_nvidia_ai_endpoints import ChatNVIDIA
 
-# ─── Groq API key ─────────────────────────────────────────────────────────────
-os.environ["GROQ_API_KEY"] = "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"
+load_dotenv()
+
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  PAGE CONFIG
@@ -716,7 +720,12 @@ RULES:
 ANSWER:
 """)
 
-    llm   = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.1)
+    llm = ChatNVIDIA(
+    model="meta/llama-3.1-70b-instruct",
+    api_key=os.getenv("NVIDIA_API_KEY"),
+    timeout=180,
+    temperature=0
+)
     chain = prompt | llm | StrOutputParser()
 
     return chain.invoke({
